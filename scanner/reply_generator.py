@@ -1,4 +1,6 @@
+import os
 import re
+import httpx
 from storage.models import Opportunity
 
 def is_russian(text: str) -> bool:
@@ -7,24 +9,66 @@ def is_russian(text: str) -> bool:
         return False
     return bool(re.search(r'[а-яА-ЯёЁ]', text))
 
+def generate_reply_via_gemini(opp: Opportunity, style: str, profile_text: str, api_key: str) -> str | None:
+    """Queries Gemini 1.5 Flash to generate a custom context-aware cover letter."""
+    use_ru = is_russian(f"{opp.title} {opp.description}")
+    
+    language_instr = "Respond in Russian" if use_ru else "Respond in English"
+    
+    prompt = f"""
+    You are an expert freelancer specializing in: {profile_text}
+    Write a short, confident, casual cover letter/reply to this freelance project:
+    Title: {opp.title}
+    Description: {opp.description}
+
+    Rules:
+    1. {language_instr}.
+    2. Mention the exact problem/needs from the project details.
+    3. Say you can help and explain briefly how.
+    4. Ask one simple next question to engage the client.
+    5. Keep it under 650 characters.
+    6. Tone: {style} (confident, casual, short, premium, or aggressive but polite).
+    7. No generic greeting phrases like "Dear Sir", "Dear Client", "Hello!" (start naturally, e.g. "Привет, могу помочь...", "Hi, I can help you with...").
+    """
+    
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+    payload = {
+        "contents": [{
+            "parts": [{"text": prompt}]
+        }]
+    }
+    
+    try:
+        r = httpx.post(url, json=payload, timeout=12.0)
+        if r.status_code == 200:
+            data = r.json()
+            text = data['candidates'][0]['content']['parts'][0]['text']
+            return text.strip()
+    except Exception:
+        pass
+    return None
+
 def generate_reply(opp: Opportunity, style: str = "confident", profile_text: str = "") -> str:
     """
     Generates a personalized, professional cover letter / message draft.
-    Adapts to Russian or English based on the listing language.
-    Strictly follows style constraints, under 800 characters, no spammy formatting.
+    Queries Gemini if GEMINI_API_KEY is configured; otherwise falls back to templates.
     """
+    api_key = os.getenv("GEMINI_API_KEY", "")
+    if api_key and api_key != "YOUR_GEMINI_API_KEY_HERE":
+        gemini_reply = generate_reply_via_gemini(opp, style, profile_text, api_key)
+        if gemini_reply:
+            return gemini_reply
+
+    # FALLBACK TEMPLATES
     use_ru = is_russian(f"{opp.title} {opp.description}")
     
-    # 1. Clean up problem details from the title
+    # Clean up problem details from the title
     problem = opp.title
-    # Remove prefixes like "Need a", "Looking for", "Требуется" to get clean problem nouns
     clean_problem = re.sub(r'^(need|looking for|required|create|build|develop|хочу|нужно|требуется|сделать|разработать)\s+', '', problem, flags=re.IGNORECASE)
     
-    # 2. Setup category specific hooks & approaches
     category = opp.category
     
     if use_ru:
-        # Russian responses
         next_questions = {
             "Landing page": "У вас уже готовы тексты и структура, или мне стоит сделать первый набросок прототипа?",
             "Website": "Есть ли у вас дизайн-макет в Figma, или мы начнем разработку с проектирования интерфейса?",
@@ -55,7 +99,6 @@ def generate_reply(opp: Opportunity, style: str = "confident", profile_text: str
             "Other": "решении технических задач и автоматизации бизнес-процессов с использованием Python и веб-технологий."
         }
 
-        # Structure drafts based on style
         if style == "short":
             msg = f"{greetings[style]} Могу помочь вам сделать {clean_problem.lower()}.\n\nСпециализируюсь на {category_reasons[category]}\n\n{next_questions[category]}"
         elif style == "casual":
@@ -68,7 +111,6 @@ def generate_reply(opp: Opportunity, style: str = "confident", profile_text: str
             msg = f"{greetings['confident']} Я могу помочь вам реализовать {clean_problem.lower()}.\n\nУ меня есть опыт в этой сфере. Я специализируюсь на {category_reasons[category]} Сделаю всё адаптивно и быстро.\n\n{next_questions[category]}"
             
     else:
-        # English responses
         next_questions = {
             "Landing page": "Do you already have the text/images/Figma, or should I create the first draft copy myself?",
             "Website": "Do you have a Figma design ready, or should we start with UI/UX prototyping?",
@@ -110,7 +152,6 @@ def generate_reply(opp: Opportunity, style: str = "confident", profile_text: str
         else: # confident (default)
             msg = f"{greetings['confident']} I can help you build this {clean_problem.lower()}.\n\nI specialize in {category_reasons[category]} I'll make sure it is clean, fast, and fully functional.\n\n{next_questions[category]}"
 
-    # Cap message size to 800 characters
     if len(msg) > 780:
         msg = msg[:780] + "..."
         

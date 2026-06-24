@@ -1,48 +1,73 @@
-import httpx
+from curl_cffi import requests
 from bs4 import BeautifulSoup
 from sources.base import BaseSource
 from storage.models import Opportunity
+from utils.hashing import generate_opportunity_hash
 from utils.time_utils import get_current_time
+from utils.text import clean_html, extract_budget
 
 class KworkSource(BaseSource):
     name = "kwork"
-    
+
     async def fetch_opportunities(self) -> list[Opportunity]:
         self.logger.info("Scanning Kwork project board...")
         opportunities = []
+        current_time = get_current_time()
         
-        # Kwork uses Cloudflare heavily. We write a parser structure, 
-        # but mark as requiring advanced API/manual bypass in production.
-        async with httpx.AsyncClient(headers={
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-        }, timeout=10.0) as client:
-            try:
-                # Attempt to get the public Kwork projects board
-                url = "https://kwork.ru/projects?c=11" # 11 is programming/IT category
-                response = await client.get(url)
+        try:
+            # IT/Programming category on Kwork
+            url = "https://kwork.ru/projects?c=11"
+            # impersonate="chrome" copies Chrome's TLS fingerprint to bypass Cloudflare
+            r = requests.get(url, impersonate="chrome", timeout=15)
+            
+            if r.status_code != 200:
+                self.logger.warning(f"Kwork returned status {r.status_code}. Cloudflare block or network issue.")
+                return opportunities
                 
-                if response.status_code == 403:
-                    self.logger.warning("Kwork access blocked by Cloudflare (403). Requires manual API key or browser automation bypass.")
-                    return opportunities
+            soup = BeautifulSoup(r.content.decode("utf-8"), "html.parser")
+            
+            # Kwork project wants are marked with want-card class
+            cards = soup.select(".want-card")
+            self.logger.info(f"Found {len(cards)} want-card structures in Kwork HTML")
+            
+            for card in cards:
+                # 1. Title and link
+                title_el = card.select_one(".want-card__title a") or card.select_one(".project-card__title a")
+                if not title_el:
+                    continue
+                title = title_el.text.strip()
+                link = title_el.get("href", "")
+                if not link.startswith("http"):
+                    link = "https://kwork.ru" + link
                     
-                if response.status_code != 200:
-                    self.logger.warning(f"Failed to fetch Kwork projects: Status {response.status_code}")
-                    return opportunities
+                # 2. Description
+                desc_el = card.select_one(".want-card__description") or card.select_one(".project-card__description")
+                description = desc_el.text.strip() if desc_el else ""
                 
-                # If we get a 200, we parse it
-                soup = BeautifulSoup(response.text, "html.parser")
-                # Parser logic would extract:
-                # - Title: a.w-break (inside div.project-card)
-                # - Budget: div.project-card__price
-                # - Desc: div.project-card__description
-                cards = soup.find_all("div", class_="project-card")
-                self.logger.info(f"Found {len(cards)} project cards in Kwork HTML")
+                # 3. Budget / Price
+                price_el = card.select_one(".want-card__price") or card.select_one(".want-card__header-price") or card.select_one(".project-card__price")
+                budget = price_el.text.strip() if price_el else None
                 
-                # Since Kwork regularly shifts UI/blocks, we check if we found cards
-                if not cards:
-                    self.logger.info("No Kwork project cards found in HTML. Layout may have changed or cookie validation is required.")
-                    
-            except Exception as e:
-                self.logger.error(f"Error scraping Kwork: {e}")
+                # Deduplicate using hash
+                hash_id = generate_opportunity_hash(title, self.name, link, description)
                 
+                # Create standard Opportunity
+                opp = Opportunity(
+                    hash_id=hash_id,
+                    source=self.name,
+                    title=title,
+                    description=description,
+                    url=link,
+                    client_name="Kwork Buyer",
+                    budget=budget,
+                    posted_at=None,  # Kwork doesn't show exact post seconds on preview, using top-of-feed detection
+                    detected_at=current_time,
+                    first_detected_at=current_time,
+                    raw_data_json=None
+                )
+                opportunities.append(opp)
+                
+        except Exception as e:
+            self.logger.error(f"Error fetching Kwork opportunities: {e}")
+            
         return opportunities
