@@ -138,7 +138,56 @@ def get_help_message() -> str:
         f"/reply_style - Update style (casual, confident, premium, etc.)\n"
         f"/profile_text - View current freelancer background text\n\n"
         f"<b>AI Helpers:</b>\n"
+        f"/portfolio - Show your vibe coding website portfolio links\n"
         f"/portfolio_ideas - Generate a mock project idea for a listing\n"
         f"/generate_demo_prompt - Generate a system prompt to code a quick demo website for a listing"
+    )
+    return text
+
+def get_portfolio_message() -> str:
+    """Returns the formatted list of Vibe Coding portfolio websites."""
+    text = (
+        f"💼 <b>My Vibe Coding Portfolio Websites</b>\n"
+        f"Tap on any URL to open it, or tap on the code block to copy it for your replies!\n\n"
+        
+        f"1. 🛍️ <b>Swaggin</b> (Street Fashion / Clothing Shop):\n"
+        f"🔗 <a href='https://swaggin-mu.vercel.app/'>swaggin-mu.vercel.app</a>\n"
+        f"<code>https://swaggin-mu.vercel.app/</code>\n\n"
+        
+        f"2. ✒️ <b>Nocturne Ink</b> (Tattoo Studio / Art Agency):\n"
+        f"🔗 <a href='https://nocturne-ink.vercel.app'>nocturne-ink.vercel.app</a>\n"
+        f"<code>https://nocturne-ink.vercel.app</code>\n\n"
+        
+        f"3. 💅 <b>Muse Nail Atelier</b> (Manicure & Beauty Salon):\n"
+        f"🔗 <a href='https://muse-nail-atelier.vercel.app/'>muse-nail-atelier.vercel.app</a>\n"
+        f"<code>https://muse-nail-atelier.vercel.app/</code>\n\n"
+        
+        f"4. 🧘 <b>FlowState</b> (Productivity & Mental Focus App):\n"
+        f"🔗 <a href='https://flowstate-delta-navy.vercel.app/'>flowstate-delta-navy.vercel.app</a>\n"
+        f"<code>https://flowstate-delta-navy.vercel.app/</code>\n\n"
+        
+        f"5. 🛋️ <b>The Soft Edit</b> (Interior Design & lifestyle blog):\n"
+        f"🔗 <a href='https://the-soft-edit-nine.vercel.app/'>the-soft-edit-nine.vercel.app</a>\n"
+        f"<code>https://the-soft-edit-nine.vercel.app/</code>\n\n"
+        
+        f"6. 💳 <b>PulsePay</b> (Fintech App / Payment Platform Demo):\n"
+        f"🔗 <a href='https://pulsepay-phi.vercel.app/'>pulsepay-phi.vercel.app</a>\n"
+        f"<code>https://pulsepay-phi.vercel.app/</code>\n\n"
+        
+        f"7. 🧴 <b>Lumera Skin</b> (Skincare & Cosmetics Brand store):\n"
+        f"🔗 <a href='https://lumera-skin-zeta.vercel.app/'>lumera-skin-zeta.vercel.app</a>\n"
+        f"<code>https://lumera-skin-zeta.vercel.app/</code>\n\n"
+        
+        f"8. 🏋️ <b>Forge Method</b> (Fitness & Athletic Training Portal):\n"
+        f"🔗 <a href='https://forge-method.vercel.app/'>forge-method.vercel.app</a>\n"
+        f"<code>https://forge-method.vercel.app/</code>\n\n"
+        
+        f"9. 🏡 <b>Aurelia Estates</b> (Luxury Real Estate Portal):\n"
+        f"🔗 <a href='https://aurelia-estates-two.vercel.app/'>aurelia-estates-two.vercel.app</a>\n"
+        f"<code>https://aurelia-estates-two.vercel.app/</code>\n\n"
+        
+        f"10. 📈 <b>Elias Morgan Advisory</b> (Business & Financial Consulting):\n"
+        f"🔗 <a href='https://elias-morgan-advisory.vercel.app/'>elias-morgan-advisory.vercel.app</a>\n"
+        f"<code>https://elias-morgan-advisory.vercel.app/</code>"
     )
     return text

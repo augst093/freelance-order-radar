@@ -195,6 +195,12 @@ async def cmd_hot(message: Message):
         )
         await asyncio.sleep(0.5)
 
+@router.message(Command("portfolio"), IsAdmin())
+@router.message(F.text == "💼 Portfolio", IsAdmin())
+async def cmd_portfolio(message: Message):
+    from bot.messages import get_portfolio_message
+    await message.answer(text=get_portfolio_message(), parse_mode="HTML", disable_web_page_preview=True)
+
 @router.message(Command("saved"), IsAdmin())
 @router.message(F.text == "⭐ Saved", IsAdmin())
 async def cmd_saved(message: Message):

@@ -7,7 +7,7 @@ def get_main_menu_keyboard() -> ReplyKeyboardMarkup:
     keyboard = [
         [KeyboardButton(text="🔍 Scan Now"), KeyboardButton(text="📊 Status")],
         [KeyboardButton(text="🔥 Hot Offers"), KeyboardButton(text="📑 Latest")],
-        [KeyboardButton(text="⭐ Saved"), KeyboardButton(text="✅ Applied")],
+        [KeyboardButton(text="⭐ Saved"), KeyboardButton(text="💼 Portfolio")],
         [KeyboardButton(text="⚙️ Settings"), KeyboardButton(text="❓ Help")]
     ]
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
