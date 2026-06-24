@@ -1,0 +1,26 @@
+# Ignore credentials and configurations
+.env
+
+# Ignore SQLite database files
+*.db
+*.db-journal
+*.db-wal
+
+# Ignore logs
+*.log
+
+# Ignore python compile caches and environments
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+env/
+venv/
+ENV/
+
+# Ignore IDE specific folders
+.idea/
+.vscode/
+.git/
+.gemini/
