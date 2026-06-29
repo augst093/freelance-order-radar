@@ -103,7 +103,7 @@ DEFAULT_NEGATIVE_KEYWORDS = [
 DEFAULT_SOURCES = [
     {"name": "mock", "enabled": 0},
     {"name": "telegram", "enabled": 1},
-    {"name": "freelancehunt", "enabled": 1},
+    {"name": "freelancehunt", "enabled": 0},
     {"name": "kwork", "enabled": 1},
     {"name": "flru", "enabled": 0},
     {"name": "reddit", "enabled": 0}
