@@ -10,28 +10,34 @@ def is_russian(text: str) -> bool:
     return bool(re.search(r'[а-яА-ЯёЁ]', text))
 
 def generate_reply_via_gemini(opp: Opportunity, style: str, profile_text: str, api_key: str) -> str | None:
-    """Queries Gemini 1.5 Flash to generate a custom context-aware cover letter."""
+    """Queries Gemini 2.0 Flash to generate a custom context-aware cover letter."""
     use_ru = is_russian(f"{opp.title} {opp.description}")
     
     language_instr = "Respond in Russian" if use_ru else "Respond in English"
     
+    vibe_coding_context = """I am a vibe coding specialist — I use AI-powered tools like Bolt.new, Lovable.dev, v0.dev, Cursor, and Windsurf to build websites, landing pages, and web apps at lightning speed. 
+    I deliver professional results in hours instead of days. I specialize in: landing pages, business websites, Telegram bots, AI-generated content/video/images, and Python automation."""
+    
+    expertise = profile_text if profile_text and len(profile_text) > 20 else vibe_coding_context
+    
     prompt = f"""
-    You are an expert freelancer specializing in: {profile_text}
-    Write a short, confident, casual cover letter/reply to this freelance project:
+    You are an expert vibe coder / AI-tools specialist freelancer.
+    Your profile: {expertise}
+    Write a short, punchy, natural cover letter/reply to this freelance project:
     Title: {opp.title}
     Description: {opp.description}
 
     Rules:
     1. {language_instr}.
-    2. Mention the exact problem/needs from the project details.
-    3. Say you can help and explain briefly how.
-    4. Ask one simple next question to engage the client.
-    5. Keep it under 650 characters.
+    2. Reference the specific task from the project.
+    3. Mention that you use modern AI tools to deliver faster than traditional developers.
+    4. Ask one smart, specific follow-up question.
+    5. Keep it under 600 characters.
     6. Tone: {style} (confident, casual, short, premium, or aggressive but polite).
-    7. No generic greeting phrases like "Dear Sir", "Dear Client", "Hello!" (start naturally, e.g. "Привет, могу помочь...", "Hi, I can help you with...").
+    7. Start naturally — NO "Dear Sir", NO "Dear Client". Start like a human: "Привет!" or "Hey," or just dive in.
     """
     
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
     payload = {
         "contents": [{
             "parts": [{"text": prompt}]
@@ -39,7 +45,7 @@ def generate_reply_via_gemini(opp: Opportunity, style: str, profile_text: str, a
     }
     
     try:
-        r = httpx.post(url, json=payload, timeout=12.0)
+        r = httpx.post(url, json=payload, timeout=15.0)
         if r.status_code == 200:
             data = r.json()
             text = data['candidates'][0]['content']['parts'][0]['text']
