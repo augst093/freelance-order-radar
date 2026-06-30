@@ -122,9 +122,6 @@ class ScannerEngine:
                 score, reasons = calculate_score(opp, pos_kws, neg_kws)
                 opp.score = score
                 
-                # Generate suggested reply
-                opp.suggested_reply = generate_reply(opp, reply_style, profile_text)
-                
                 # Save to database to generate an autoincrement ID
                 saved_opp = await self.db.save_opportunity(opp)
                 opp.id = saved_opp.id
@@ -145,6 +142,9 @@ class ScannerEngine:
                 # Final check: AI Filter
                 is_relevant = await is_opportunity_relevant(opp.title, opp.description, config.GEMINI_API_KEY)
                 if is_relevant:
+                    # Generate suggested reply ONLY for relevant and high-score items
+                    opp.suggested_reply = generate_reply(opp, reply_style, profile_text)
+                    await self.db.save_opportunity(opp)
                     qualified_opportunities.append(opp)
                 else:
                     # Update status to rejected so we don't scan it again
