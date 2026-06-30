@@ -74,6 +74,9 @@ def calculate_score(
     if matches_count > 0:
         score += 2
         reasons.append(f"✅ Matches your services ({matches_count} keywords matched)")
+    else:
+        score -= 10
+        reasons.append("❌ No relevant keywords found (Not your niche)")
         
     # 3. Simple / Easy task check
     diff = estimate_difficulty(opp.title, opp.description)

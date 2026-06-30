@@ -2,6 +2,9 @@ import os
 import re
 import httpx
 from storage.models import Opportunity
+from utils.logger import get_logger
+
+logger = get_logger("reply_generator")
 
 def is_russian(text: str) -> bool:
     """Detects if the text contains Russian Cyrillic characters."""
@@ -12,36 +15,41 @@ def is_russian(text: str) -> bool:
 def generate_reply_via_gemini(opp: Opportunity, style: str, profile_text: str, api_key: str) -> str | None:
     """Queries Gemini 2.0 Flash to generate a custom context-aware cover letter."""
     use_ru = is_russian(f"{opp.title} {opp.description}")
-    
     language_instr = "Respond in Russian" if use_ru else "Respond in English"
     
-    vibe_coding_context = """I am a vibe coding specialist — I use AI-powered tools like Bolt.new, Lovable.dev, v0.dev, Cursor, and Windsurf to build websites, landing pages, and web apps at lightning speed. 
-    I deliver professional results in hours instead of days. I specialize in: landing pages, business websites, Telegram bots, AI-generated content/video/images, and Python automation."""
+    vibe_coding_context = """Я разработчик новой волны (Vibe Coder). Я не пишу код неделями, я использую ИИ (Cursor, Lovable, v0, Windsurf) чтобы собирать идеальные проекты (лендинги, боты, веб-приложения) за считанные часы. 
+У меня огромная насмотренность, чистый код и фокус на бизнес-результат, а не на техническую духоту."""
     
     expertise = profile_text if profile_text and len(profile_text) > 20 else vibe_coding_context
     
     prompt = f"""
-    You are an expert vibe coder / AI-tools specialist freelancer.
+    You are an expert vibe coder / AI-assisted developer looking for freelance gigs.
     Your profile: {expertise}
-    Write a short, punchy, natural cover letter/reply to this freelance project:
+    
+    Write a short, punchy, human-like cover letter to this project:
     Title: {opp.title}
     Description: {opp.description}
 
-    Rules:
+    RULES:
     1. {language_instr}.
-    2. Reference the specific task from the project.
-    3. Mention that you use modern AI tools to deliver faster than traditional developers.
-    4. Ask one smart, specific follow-up question.
-    5. Keep it under 600 characters.
-    6. Tone: {style} (confident, casual, short, premium, or aggressive but polite).
-    7. Start naturally — NO "Dear Sir", NO "Dear Client". Start like a human: "Привет!" or "Hey," or just dive in.
+    2. Analyze the project description. If it's a website/landing, mention fast delivery with Next.js/React or Tilda/Webflow. If it's a bot, mention robust Python/aiogram architectures. If it's automation, mention clean Python scripts.
+    3. DON'T BE ROBOTIC. Sound like a confident, modern developer. Do NOT use generic openings like "Здравствуйте, я могу помочь вам реализовать...".
+    4. Start immediately with a hook related to their specific problem. Example: "Вижу, что нужен лендинг для юриста..." or "Могу собрать этого бота за пару дней...".
+    5. Highlight that you use modern AI tools to deliver 10x faster and cleaner than standard developers.
+    6. End with ONE specific, smart technical question about their project to start the dialogue.
+    7. Tone: {style} (confident, sharp, no-bullshit).
+    8. KEEP IT UNDER 600 CHARACTERS. Short and punchy wins.
     """
     
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
     payload = {
         "contents": [{
             "parts": [{"text": prompt}]
-        }]
+        }],
+        "generationConfig": {
+            "temperature": 0.7,
+            "maxOutputTokens": 200
+        }
     }
     
     try:
@@ -50,14 +58,17 @@ def generate_reply_via_gemini(opp: Opportunity, style: str, profile_text: str, a
             data = r.json()
             text = data['candidates'][0]['content']['parts'][0]['text']
             return text.strip()
-    except Exception:
-        pass
+        else:
+            logger.error(f"Reply generator Gemini error: {r.status_code} - {r.text}")
+    except Exception as e:
+        logger.error(f"Reply generator exception: {e}")
+        
     return None
 
 def generate_reply(opp: Opportunity, style: str = "confident", profile_text: str = "") -> str:
     """
-    Generates a personalized, professional cover letter / message draft.
-    Queries Gemini if GEMINI_API_KEY is configured; otherwise falls back to templates.
+    Generates a personalized cover letter.
+    ONLY uses Gemini. No robotic templates allowed.
     """
     api_key = os.getenv("GEMINI_API_KEY", "")
     if api_key and api_key != "YOUR_GEMINI_API_KEY_HERE":
@@ -65,100 +76,6 @@ def generate_reply(opp: Opportunity, style: str = "confident", profile_text: str
         if gemini_reply:
             return gemini_reply
 
-    # FALLBACK TEMPLATES
-    use_ru = is_russian(f"{opp.title} {opp.description}")
-    
-    # Clean up problem details from the title
-    problem = opp.title
-    clean_problem = re.sub(r'^(need|looking for|required|create|build|develop|хочу|нужно|требуется|сделать|разработать)\s+', '', problem, flags=re.IGNORECASE)
-    
-    category = opp.category
-    
-    if use_ru:
-        next_questions = {
-            "Landing page": "У вас уже готовы тексты и структура, или мне стоит сделать первый набросок прототипа?",
-            "Website": "Есть ли у вас дизайн-макет в Figma, или мы начнем разработку с проектирования интерфейса?",
-            "Telegram bot": "Подскажите, нужно ли интегрировать бота с какими-то внешними сервисами (CRM, Google Таблицы, платежные системы)?",
-            "AI video": "Материалы для генерации видео предоставите вы, или мне полностью подготовить сценарий и креативы?",
-            "AI image": "В каком стиле вы планируете генерацию и есть ли примеры картинок, которые вам нравятся?",
-            "Automation": "Опишите, пожалуйста, логику процесса: какие исходные данные и куда их нужно переносить?",
-            "Content/SMM": "Какая тематика проекта и есть ли у вас контент-план на ближайшее время?",
-            "Other": "Расскажите подробнее о деталях задачи. Когда планируете начать?"
-        }
-        
-        greetings = {
-            "casual": "Привет!",
-            "confident": "Здравствуйте!",
-            "short": "Приветствую!",
-            "premium": "Здравствуйте! Меня зовут разработчик-партнер.",
-            "aggressive but polite": "Здравствуйте! Готов приступить к работе."
-        }
-        
-        category_reasons = {
-            "Landing page": "создании продающих посадочных страниц с фокусом на конверсию, быструю скорость загрузки и удобство для мобильных устройств.",
-            "Website": "разработке современных адаптивных веб-сайтов на чистом коде (HTML/CSS/JS) или фреймворках, оптимизированных для SEO.",
-            "Telegram bot": "разработке функциональных Telegram ботов на Python (используя aiogram 3). Создаю надежную архитектуру с базами данных.",
-            "AI video": "создании качественных видеороликов с помощью ИИ (heygen, runway). Делаю монтаж, озвучку и реалистичную синхронизацию губ.",
-            "AI image": "генерации реалистичных и концептуальных изображений через Midjourney и Stable Diffusion для бизнеса и блогов.",
-            "Automation": "написании эффективных Python скриптов для парсинга данных, интеграции API и автоматизации рутины.",
-            "Content/SMM": "создании вовлекающего контента с ИИ-генерацией картинок/видео для соцсетей и блогов.",
-            "Other": "решении технических задач и автоматизации бизнес-процессов с использованием Python и веб-технологий."
-        }
+    # IF AI FAILS (e.g. rate limit), return a simple warning string instead of a dumb template.
+    return "⚠️ ИИ не смог сгенерировать ответ из-за лимитов API. Напишите отклик самостоятельно."
 
-        if style == "short":
-            msg = f"{greetings[style]} Могу помочь вам сделать {clean_problem.lower()}.\n\nСпециализируюсь на {category_reasons[category]}\n\n{next_questions[category]}"
-        elif style == "casual":
-            msg = f"{greetings[style]} Прочитал описание вашей задачи по разработке {clean_problem.lower()}. Могу с этим помочь.\n\nДелаю качественно, без лишней воды. {profile_text}\n\n{next_questions[category]} Давай обсудим детали?"
-        elif style == "premium":
-            msg = f"{greetings[style]} Ознакомился с вашим проектом: {opp.title}. Предлагаю свои услуги по разработке.\n\nМой подход — это создание премиальных решений с высокой скоростью загрузки и чистым кодом. Специализируюсь на {category_reasons[category]}\n\nСкажите, пожалуйста, {next_questions[category].lower()}"
-        elif style == "aggressive but polite":
-            msg = f"{greetings[style]} Готов взять ваш заказ «{opp.title}» в работу прямо сейчас. Опыт имеется.\n\nГарантирую соблюдение сроков и чистый код. {category_reasons[category].capitalize()}\n\nДавайте спишемся в чате? {next_questions[category]}"
-        else: # confident (default)
-            msg = f"{greetings['confident']} Я могу помочь вам реализовать {clean_problem.lower()}.\n\nУ меня есть опыт в этой сфере. Я специализируюсь на {category_reasons[category]} Сделаю всё адаптивно и быстро.\n\n{next_questions[category]}"
-            
-    else:
-        next_questions = {
-            "Landing page": "Do you already have the text/images/Figma, or should I create the first draft copy myself?",
-            "Website": "Do you have a Figma design ready, or should we start with UI/UX prototyping?",
-            "Telegram bot": "Do we need to integrate the bot with external services like a CRM, Google Sheets, or payment gateways?",
-            "AI video": "Will you provide the scripts/voiceovers, or should I handle the scriptwriting and AI generations end-to-end?",
-            "AI image": "What specific style are you aiming for, and do you have any reference images you like?",
-            "Automation": "Could you share the manual steps you're doing right now so I can automate them accurately?",
-            "Content/SMM": "What is the niche of your project, and how often do you plan to post?",
-            "Other": "Could you share a bit more details about the core requirements? Let's discuss."
-        }
-        
-        greetings = {
-            "casual": "Hey there!",
-            "confident": "Hi,",
-            "short": "Hello,",
-            "premium": "Hello,",
-            "aggressive but polite": "Hi, I can help you with this right away."
-        }
-        
-        category_reasons = {
-            "Landing page": "building high-converting landing pages focused on fast loading times, clean code, and great mobile experiences.",
-            "Website": "developing responsive, modern business websites using clean HTML/CSS/JS or frameworks, fully optimized for performance.",
-            "Telegram bot": "building robust Telegram bots in Python using aiogram. I design clean DB schemas and secure integrations.",
-            "AI video": "generating professional video content using AI avatars, realistic voice syncing, and high-fidelity video tools.",
-            "AI image": "creating premium assets using Stable Diffusion and Midjourney, customized to match brand identity.",
-            "Automation": "writing clean Python scripts for scraping public pages, automating workflows, and API connections.",
-            "Content/SMM": "creating engaging copy paired with unique AI-generated graphics/videos for social channels.",
-            "Other": "building custom automation scripts and web tools to solve specific technical challenges."
-        }
-
-        if style == "short":
-            msg = f"{greetings[style]} I can help you with {clean_problem.lower()}.\n\nI specialize in {category_reasons[category]}\n\n{next_questions[category]}"
-        elif style == "casual":
-            msg = f"{greetings[style]} Saw your post about needing {clean_problem.lower()}. I can get this done for you.\n\nI focus on clean work and easy communication. {profile_text}\n\n{next_questions[category]} Let me know if you want to chat."
-        elif style == "premium":
-            msg = f"{greetings[style]} I reviewed your project details regarding {opp.title}. I would like to offer my services.\n\nI focus on premium custom development, providing fast performance and reliable code. I have extensive experience in {category_reasons[category]}\n\n{next_questions[category]}"
-        elif style == "aggressive but polite":
-            msg = f"{greetings[style]} I can start working on your {clean_problem.lower()} project immediately.\n\nI have completed similar projects successfully. My focus is on speed, clean code, and solid logic. {category_reasons[category].capitalize()}\n\nLet's get started. {next_questions[category]}"
-        else: # confident (default)
-            msg = f"{greetings['confident']} I can help you build this {clean_problem.lower()}.\n\nI specialize in {category_reasons[category]} I'll make sure it is clean, fast, and fully functional.\n\n{next_questions[category]}"
-
-    if len(msg) > 780:
-        msg = msg[:780] + "..."
-        
-    return msg

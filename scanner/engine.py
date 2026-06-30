@@ -7,6 +7,8 @@ from utils.time_utils import get_current_time
 from scanner.freshness import update_freshness
 from scanner.scoring import detect_category, estimate_difficulty, calculate_score
 from scanner.reply_generator import generate_reply
+from scanner.ai_filter import is_opportunity_relevant
+import config
 
 # Import sources dynamically or statically
 from sources.mock_source import MockSource
@@ -140,7 +142,14 @@ class ScannerEngine:
                 opp.score >= min_score and 
                 not is_sent
             ):
-                qualified_opportunities.append(opp)
+                # Final check: AI Filter
+                is_relevant = await is_opportunity_relevant(opp.title, opp.description, config.GEMINI_API_KEY)
+                if is_relevant:
+                    qualified_opportunities.append(opp)
+                else:
+                    # Update status to rejected so we don't scan it again
+                    opp.status = "rejected_by_ai"
+                    await self.db.save_opportunity(opp)
                 
         # Sort qualified items by score descending, then by age (newest first)
         qualified_opportunities.sort(key=lambda x: (x.score, -x.age_minutes), reverse=True)
