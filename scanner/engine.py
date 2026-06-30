@@ -143,7 +143,7 @@ class ScannerEngine:
                 is_relevant = await is_opportunity_relevant(opp.title, opp.description, config.GEMINI_API_KEY)
                 if is_relevant:
                     # Generate suggested reply ONLY for relevant and high-score items
-                    opp.suggested_reply = generate_reply(opp, reply_style, profile_text)
+                    opp.suggested_reply = await generate_reply(opp, reply_style, profile_text)
                     await self.db.save_opportunity(opp)
                     qualified_opportunities.append(opp)
                 else:
