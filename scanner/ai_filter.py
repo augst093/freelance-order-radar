@@ -34,7 +34,7 @@ async def is_opportunity_relevant(title: str, description: str, api_key: str) ->
     Output format: You MUST output ONLY the word "YES" or "NO". No other text or explanation.
     """
     
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
     payload = {
         "contents": [{
             "parts": [{"text": prompt}]
