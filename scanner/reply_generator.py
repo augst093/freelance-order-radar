@@ -41,7 +41,7 @@ async def generate_reply_via_gemini(opp: Opportunity, style: str, profile_text: 
     8. KEEP IT UNDER 600 CHARACTERS. Short and punchy wins.
     """
     
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
     payload = {
         "contents": [{
             "parts": [{"text": prompt}]
