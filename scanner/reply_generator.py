@@ -48,7 +48,7 @@ async def generate_reply_via_gemini(opp: Opportunity, style: str, profile_text: 
         }],
         "generationConfig": {
             "temperature": 0.7,
-            "maxOutputTokens": 200
+            "maxOutputTokens": 1000
         }
     }
     
