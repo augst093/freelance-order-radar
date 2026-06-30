@@ -12,8 +12,8 @@ def is_russian(text: str) -> bool:
         return False
     return bool(re.search(r'[а-яА-ЯёЁ]', text))
 
-def generate_reply_via_gemini(opp: Opportunity, style: str, profile_text: str, api_key: str) -> str | None:
-    """Queries Gemini 2.0 Flash to generate a custom context-aware cover letter."""
+async def generate_reply_via_gemini(opp: Opportunity, style: str, profile_text: str, api_key: str) -> str | None:
+    """Queries Gemini 2.0 Flash to generate a custom context-aware cover letter asynchronously."""
     use_ru = is_russian(f"{opp.title} {opp.description}")
     language_instr = "Respond in Russian" if use_ru else "Respond in English"
     
@@ -53,7 +53,8 @@ def generate_reply_via_gemini(opp: Opportunity, style: str, profile_text: str, a
     }
     
     try:
-        r = httpx.post(url, json=payload, timeout=15.0)
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            r = await client.post(url, json=payload)
         if r.status_code == 200:
             data = r.json()
             text = data['candidates'][0]['content']['parts'][0]['text']
@@ -65,14 +66,14 @@ def generate_reply_via_gemini(opp: Opportunity, style: str, profile_text: str, a
         
     return None
 
-def generate_reply(opp: Opportunity, style: str = "confident", profile_text: str = "") -> str:
+async def generate_reply(opp: Opportunity, style: str = "confident", profile_text: str = "") -> str:
     """
-    Generates a personalized cover letter.
+    Generates a personalized cover letter asynchronously.
     ONLY uses Gemini. No robotic templates allowed.
     """
     api_key = os.getenv("GEMINI_API_KEY", "")
     if api_key and api_key != "YOUR_GEMINI_API_KEY_HERE":
-        gemini_reply = generate_reply_via_gemini(opp, style, profile_text, api_key)
+        gemini_reply = await generate_reply_via_gemini(opp, style, profile_text, api_key)
         if gemini_reply:
             return gemini_reply
 

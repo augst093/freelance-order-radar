@@ -133,7 +133,7 @@ async def cmd_test_scan(message: Message):
         opp.category = detect_category(opp.title, opp.description)
         opp.difficulty = estimate_difficulty(opp.title, opp.description)
         opp.score, _ = calculate_score(opp, pos_kws, neg_kws)
-        opp.suggested_reply = generate_reply(opp, reply_style, profile_text)
+        opp.suggested_reply = await generate_reply(opp, reply_style, profile_text)
         
         # Save to SQLite DB
         saved_opp = await db_inst.save_opportunity(opp)
@@ -512,7 +512,7 @@ async def handle_regen_reply(callback: CallbackQuery):
     current_idx = styles.index(style) if style in styles else 0
     next_style = styles[(current_idx + 1) % len(styles)]
     
-    new_reply = generate_reply(opp, next_style, profile)
+    new_reply = await generate_reply(opp, next_style, profile)
     await db_inst.update_opportunity_reply(opp_id, new_reply)
     opp.suggested_reply = new_reply
     

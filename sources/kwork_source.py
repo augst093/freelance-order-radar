@@ -1,4 +1,4 @@
-from curl_cffi import requests
+from curl_cffi.requests import AsyncSession
 from bs4 import BeautifulSoup
 from sources.base import BaseSource
 from storage.models import Opportunity
@@ -17,11 +17,12 @@ class KworkSource(BaseSource):
         try:
             # IT/Programming category on Kwork
             url = "https://kwork.ru/projects?c=11"
-            # impersonate="chrome" copies Chrome's TLS fingerprint to bypass Cloudflare
-            r = requests.get(url, impersonate="chrome", timeout=15)
+            
+            async with AsyncSession(impersonate="chrome", timeout=15.0) as session:
+                r = await session.get(url)
             
             if r.status_code != 200:
-                self.logger.warning(f"Kwork returned status {r.status_code}. Cloudflare block or network issue.")
+                self.logger.warning(f"Kwork returned status {r.status_code}. Network issue.")
                 return opportunities
                 
             import re, json
