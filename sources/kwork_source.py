@@ -24,34 +24,36 @@ class KworkSource(BaseSource):
                 self.logger.warning(f"Kwork returned status {r.status_code}. Cloudflare block or network issue.")
                 return opportunities
                 
-            soup = BeautifulSoup(r.content.decode("utf-8"), "html.parser")
+            import re, json
+            soup = BeautifulSoup(r.content.decode("utf-8", "ignore"), "html.parser")
             
-            # Kwork project wants are marked with want-card class
-            cards = soup.select(".want-card")
-            self.logger.info(f"Found {len(cards)} want-card structures in Kwork HTML")
+            wants = []
+            scripts = soup.find_all('script')
+            for s in scripts:
+                if s.string and len(s.string) > 100000:
+                    match = re.search(r'window\.stateData\s*=\s*(.*?);window', s.string)
+                    if match:
+                        try:
+                            state = json.loads(match.group(1))
+                            wants = state.get('wantsListData', {}).get('wants', [])
+                            break
+                        except Exception as e:
+                            self.logger.error(f"Kwork JSON parse error: {e}")
             
-            for card in cards:
-                # 1. Title and link
-                title_el = card.select_one(".want-card__title a") or card.select_one(".project-card__title a")
-                if not title_el:
+            self.logger.info(f"Found {len(wants)} projects in Kwork JSON state")
+            
+            for w in wants:
+                title = w.get("name", "").strip()
+                if not title:
                     continue
-                title = title_el.text.strip()
-                link = title_el.get("href", "")
-                if not link.startswith("http"):
-                    link = "https://kwork.ru" + link
+                link = f"https://kwork.ru/projects/{w.get('id')}/view"
+                description = w.get("description", "").strip()
+                budget = str(w.get("priceLimit", ""))
+                if budget:
+                    budget += " ₽"
                     
-                # 2. Description
-                desc_el = card.select_one(".want-card__description") or card.select_one(".project-card__description")
-                description = desc_el.text.strip() if desc_el else ""
-                
-                # 3. Budget / Price
-                price_el = card.select_one(".want-card__price") or card.select_one(".want-card__header-price") or card.select_one(".project-card__price")
-                budget = price_el.text.strip() if price_el else None
-                
-                # Deduplicate using hash
                 hash_id = generate_opportunity_hash(title, self.name, link, description)
                 
-                # Create standard Opportunity
                 opp = Opportunity(
                     hash_id=hash_id,
                     source=self.name,
@@ -60,10 +62,10 @@ class KworkSource(BaseSource):
                     url=link,
                     client_name="Kwork Buyer",
                     budget=budget,
-                    posted_at=None,  # Kwork doesn't show exact post seconds on preview, using top-of-feed detection
+                    posted_at=None,
                     detected_at=current_time,
                     first_detected_at=current_time,
-                    raw_data_json=None
+                    raw_data_json=json.dumps(w)
                 )
                 opportunities.append(opp)
                 
