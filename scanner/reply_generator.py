@@ -52,18 +52,27 @@ async def generate_reply_via_gemini(opp: Opportunity, style: str, profile_text: 
         }
     }
     
-    try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            r = await client.post(url, json=payload)
-        if r.status_code == 200:
-            data = r.json()
-            text = data['candidates'][0]['content']['parts'][0]['text']
-            return text.strip()
-        else:
-            logger.error(f"Reply generator Gemini error: {r.status_code} - {r.text}")
-    except Exception as e:
-        logger.error(f"Reply generator exception: {e}")
-        
+    max_retries = 3
+    base_delay = 5.0
+    for attempt in range(max_retries):
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                r = await client.post(url, json=payload)
+            if r.status_code == 200:
+                data = r.json()
+                text = data['candidates'][0]['content']['parts'][0]['text']
+                return text.strip()
+            elif r.status_code == 429:
+                logger.warning(f"Reply generator: Rate limited (429). Attempt {attempt + 1}/{max_retries}. Retrying in {base_delay}s...")
+                await asyncio.sleep(base_delay)
+                base_delay *= 2
+            else:
+                logger.error(f"Reply generator Gemini error: {r.status_code} - {r.text}")
+                break
+        except Exception as e:
+            logger.error(f"Reply generator exception: {e}")
+            break
+            
     return None
 
 async def generate_reply(opp: Opportunity, style: str = "confident", profile_text: str = "") -> str:
