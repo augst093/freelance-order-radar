@@ -127,15 +127,17 @@ class ScannerEngine:
                 opp.id = saved_opp.id
                 
             # 5. Filter for notifications
-            # Check if this qualifies for a notification:
-            # - Must be status 'new'
-            # - Must be HOT or FRESH
+            # Rules:
+            # - Status must be 'new'
             # - Score must be >= min_score
-            # - Must not have been sent before
+            # - Must not have been notified before
+            # NOTE: We intentionally DO NOT filter by freshness_bucket here.
+            # Telegram posts can be hours old by the time the bot first sees them,
+            # and filtering by HOT/FRESH was silently dropping 99% of Telegram leads.
+            # The deduplication (is_notification_sent) prevents us from spamming the same post twice.
             is_sent = await self.db.is_notification_sent(opp.id)
             if (
                 opp.status == "new" and 
-                opp.freshness_bucket in ("HOT", "FRESH") and 
                 opp.score >= min_score and 
                 not is_sent
             ):
