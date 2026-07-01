@@ -277,7 +277,10 @@ class TelegramSource(BaseSource):
                             budget=None, # Budget can be parsed from description inside scanner
                             posted_at=posted_at,
                             detected_at=current_time,
-                            first_detected_at=posted_at or current_time,
+                            # Use current_time as first_detected_at so freshness is based on
+                            # when WE first saw this post, not when it was published.
+                            # This prevents hours-old posts from being immediately dropped as TOO_OLD.
+                            first_detected_at=current_time,
                             raw_data_json=None
                         )
                         opportunities.append(opp)
