@@ -95,16 +95,22 @@ class ScannerEngine:
             existing = await self.db.get_opportunity_by_hash(opp.hash_id)
             
             if existing:
-                # Recalculate age & freshness bucket
+                # Restore fields from DB record
                 opp.first_detected_at = existing.first_detected_at
                 opp.detected_at = existing.detected_at
                 opp.id = existing.id
                 opp.status = existing.status
+                opp.category = existing.category or detect_category(opp.title, opp.description)
+                opp.difficulty = existing.difficulty or estimate_difficulty(opp.title, opp.description)
                 update_freshness(opp)
-                
-                # Update in DB with new age details
+
+                # Always recalculate score (fixes cases where score was saved as 0 due to earlier bug)
+                score, _ = calculate_score(opp, pos_kws, neg_kws)
+                opp.score = score
+
+                # Update in DB with fresh score + freshness
                 await self.db.save_opportunity(opp)
-                
+
                 # If we've already notified or processed this, skip notification
                 if existing.status != "new" or await self.db.is_notification_sent(existing.id):
                     continue
