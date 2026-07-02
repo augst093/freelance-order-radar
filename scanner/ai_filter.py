@@ -45,12 +45,12 @@ async def is_opportunity_relevant(title: str, description: str, api_key: str) ->
         }
     }
     
-    max_retries = 3
-    base_delay = 2.0
+    max_retries = 5
+    base_delay = 15.0  # Start with 15s delay to respect 5 req/min limit
     
     for attempt in range(max_retries):
         try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
+            async with httpx.AsyncClient(timeout=15.0) as client:
                 r = await client.post(url, json=payload)
                 
             if r.status_code == 200:
@@ -68,10 +68,12 @@ async def is_opportunity_relevant(title: str, description: str, api_key: str) ->
                 base_delay *= 2  # Exponential backoff
             else:
                 logger.error(f"AI Filter error: Status {r.status_code} - {r.text}")
-                break # Break on non-retryable errors
+                # Fail-open: don't block lead on API errors
+                return True
         except Exception as e:
             logger.error(f"AI Filter exception: {e}")
-            break
+            # Fail-open: don't block lead on exceptions
+            return True
             
-    logger.warning("AI Filter failed after retries or error. Falling back to False to prevent spam.")
-    return False # Fallback to False to prevent junk leaking through
+    logger.warning("AI Filter: Rate limit exhausted after retries. Failing OPEN to not block leads.")
+    return True  # Fail-open: better to send a lead than miss it

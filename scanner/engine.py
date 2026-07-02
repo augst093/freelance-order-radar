@@ -148,6 +148,8 @@ class ScannerEngine:
                 not is_sent
             ):
                 # Final check: AI Filter
+                # Wait 12s between calls to stay within Gemini free tier (5 req/min)
+                await asyncio.sleep(12)
                 is_relevant = await is_opportunity_relevant(opp.title, opp.description, config.GEMINI_API_KEY)
                 if is_relevant:
                     # Generate suggested reply ONLY for relevant and high-score items
