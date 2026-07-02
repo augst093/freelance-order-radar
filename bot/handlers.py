@@ -67,16 +67,20 @@ async def cmd_help(message: Message):
 
 # 3. SCAN NOW
 @router.message(Command("scan_now"), IsAdmin())
+@router.message(Command("scan"), IsAdmin())
 @router.message(F.text == "🔍 Scan Now", IsAdmin())
 async def cmd_scan_now(message: Message):
-    status_msg = await message.answer("🔄 Scanning enabled sources for new freelance offers...")
+    status_msg = await message.answer("🔄 Scanning all sources (Telegram, Kwork, Freelancehunt)...")
     try:
         new_opps = await engine_inst.scan_now()
         
         await message.bot.delete_message(chat_id=message.chat.id, message_id=status_msg.message_id)
         
         if not new_opps:
-            await message.answer("✅ Scan completed. No new high-scoring (HOT/FRESH) opportunities found.")
+            await message.answer(
+                "✅ Scan done. No new leads passed the filters right now.\n"
+                "If you expect Telegram leads, run /reset_scan first, then /scan again."
+            )
             return
             
         await message.answer(f"📈 Found {len(new_opps)} new matching opportunities:")
