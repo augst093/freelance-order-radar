@@ -377,3 +377,12 @@ class Database:
             stats["last_scan_time"] = (await cursor.fetchone())[0]
 
             return stats
+
+    async def reset_rejected_opportunities(self) -> int:
+        """Resets all 'rejected_by_ai' opportunities back to 'new' so they get re-evaluated."""
+        async with aiosqlite.connect(self.db_path) as db:
+            cursor = await db.execute(
+                "UPDATE opportunities SET status = 'new' WHERE status = 'rejected_by_ai'"
+            )
+            await db.commit()
+            return cursor.rowcount

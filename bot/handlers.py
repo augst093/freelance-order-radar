@@ -101,6 +101,17 @@ async def cmd_scan_now(message: Message):
         logger.error(f"Error manually running scan: {e}")
         await message.answer(f"❌ Error occurred during scan: {e}")
 
+# 3b. RESET REJECTED — сбросить rejected_by_ai обратно в new
+@router.message(Command("reset_scan"), IsAdmin())
+async def cmd_reset_scan(message: Message):
+    await message.answer("♻️ Resetting all rejected posts back to 'new' for re-evaluation...")
+    count = await db_inst.reset_rejected_opportunities()
+    await message.answer(
+        f"✅ Done! <b>{count}</b> rejected posts reset to 'new'.\n\n"
+        f"Now use /scan to run a fresh scan — Telegram leads will be re-evaluated and sent.",
+        parse_mode="HTML"
+    )
+
 # 4. TEST SCAN
 @router.message(Command("test_scan"), IsAdmin())
 async def cmd_test_scan(message: Message):
