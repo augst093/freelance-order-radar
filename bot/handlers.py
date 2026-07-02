@@ -112,6 +112,47 @@ async def cmd_reset_scan(message: Message):
         parse_mode="HTML"
     )
 
+# 3c. DEBUG — показывает состояние базы данных прямо в чате
+@router.message(Command("debug"), IsAdmin())
+async def cmd_debug(message: Message):
+    import aiosqlite
+    await message.answer("🔍 Checking database state on this server...")
+    try:
+        async with aiosqlite.connect(db_inst.db_path) as conn:
+            conn.row_factory = aiosqlite.Row
+
+            # By source + status
+            cur = await conn.execute("""
+                SELECT source, status, COUNT(*) as cnt
+                FROM opportunities GROUP BY source, status ORDER BY source
+            """)
+            rows = await cur.fetchall()
+            lines = ["<b>📊 DB State by source:</b>"]
+            for r in rows:
+                lines.append(f"  {r['source']} | {r['status']} | {r['cnt']}")
+
+            # Sent notifications
+            cur = await conn.execute("SELECT COUNT(*) FROM sent_notifications")
+            sent_total = (await cur.fetchone())[0]
+            lines.append(f"\n<b>📬 Total notifications sent:</b> {sent_total}")
+
+            # min_score setting
+            cur = await conn.execute("SELECT value FROM settings WHERE key='min_score_to_notify'")
+            row = await cur.fetchone()
+            min_score = row[0] if row else "?"
+            lines.append(f"<b>🎯 min_score_to_notify:</b> {min_score}")
+
+            # Keywords count
+            cur = await conn.execute("SELECT COUNT(*) FROM keywords WHERE is_negative=0")
+            pos = (await cur.fetchone())[0]
+            cur = await conn.execute("SELECT COUNT(*) FROM keywords WHERE is_negative=1")
+            neg = (await cur.fetchone())[0]
+            lines.append(f"<b>🔑 Keywords:</b> {pos} positive / {neg} negative")
+
+            await message.answer("\n".join(lines), parse_mode="HTML")
+    except Exception as e:
+        await message.answer(f"❌ Debug error: {e}")
+
 # 4. TEST SCAN
 @router.message(Command("test_scan"), IsAdmin())
 async def cmd_test_scan(message: Message):
