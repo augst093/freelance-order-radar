@@ -59,15 +59,14 @@ def calculate_score(
     text = f"{opp.title} {opp.description}".lower()
     
     # 1. Freshness Score Modifiers
+    # NOTE: We do NOT penalize for old age — Telegram posts are always
+    # seen late by the bot. Age does not determine lead quality.
     if opp.freshness_bucket == "HOT":
-        score += 3
+        score += 1
         reasons.append("🔥 Hot off the press (0-15 min)")
     elif opp.freshness_bucket == "FRESH":
-        score += 2
+        score += 1
         reasons.append("⚡ Very fresh (15-30 min)")
-    elif opp.freshness_bucket in ("OLD", "TOO_OLD"):
-        score -= 2
-        reasons.append("⏳ Listing is older than 60 minutes")
     
     # 2. Positive Keyword matching (Matches services)
     matches_count = count_keyword_matches(text, positive_keywords)
